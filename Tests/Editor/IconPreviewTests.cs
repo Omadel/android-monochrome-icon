@@ -11,26 +11,33 @@ namespace Javienne.AndroidMonochromeIcon.Tests
         private static readonly Color32 _clear = new Color32(255, 255, 255, 0);
 
         [Test]
-        public void SampleVisibleLayer_OpaqueOuterSixth_IsHidden()
+        public void SampleAlpha_LayerInset_HidesOuterSixth()
         {
             var pixels = Image(6, (x, y) => x == 0 || y == 0 || x == 5 || y == 5);
-            Assert.That(IconPreview.SampleVisibleLayer(pixels, 6, 6, 4), Is.All.EqualTo(0f).Within(1e-4f));
+            Assert.That(IconPreview.SampleAlpha(pixels, 6, 6, 4, IconPreview.LAYER_INSET), Is.All.EqualTo(0f).Within(1e-4f));
         }
 
         [Test]
-        public void SampleVisibleLayer_TopVisibleRow_ComesFirst()
+        public void SampleAlpha_LayerInset_PutsTopVisibleRowFirst()
         {
             var pixels = Image(6, (x, y) => y == 1);
-            var alpha = IconPreview.SampleVisibleLayer(pixels, 6, 6, 4);
+            var alpha = IconPreview.SampleAlpha(pixels, 6, 6, 4, IconPreview.LAYER_INSET);
             Assert.That(alpha.Take(4), Is.All.EqualTo(1f).Within(1e-4f));
             Assert.That(alpha.Skip(4), Is.All.EqualTo(0f).Within(1e-4f));
         }
 
         [Test]
-        public void SampleVisibleLayer_SmallerGrid_AveragesPixels()
+        public void SampleAlpha_SmallerGrid_AveragesPixels()
         {
             var pixels = Image(12, (x, y) => (x + y) % 2 == 0);
-            Assert.That(IconPreview.SampleVisibleLayer(pixels, 12, 12, 4), Is.All.EqualTo(0.5f).Within(1e-4f));
+            Assert.That(IconPreview.SampleAlpha(pixels, 12, 12, 4, IconPreview.LAYER_INSET), Is.All.EqualTo(0.5f).Within(1e-4f));
+        }
+
+        [Test]
+        public void SampleAlpha_NoInset_SamplesWholeImage()
+        {
+            var pixels = Image(4, (x, y) => x < 2);
+            Assert.That(IconPreview.SampleAlpha(pixels, 4, 4, 2, 0), Is.EqualTo(new[] { 1f, 0f, 1f, 0f }).Within(1e-4f));
         }
 
         [Test]

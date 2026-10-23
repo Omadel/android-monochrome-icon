@@ -13,10 +13,16 @@ namespace Javienne.AndroidMonochromeIcon
         [SerializeField] private bool _enabled = true;
         [SerializeField] private Texture2D _image;
         [SerializeField] private bool _failBuildOnError;
+        [SerializeField] private DefaultAsset _shapesFolder;
 
         public bool Enabled => _enabled;
         public Texture2D Image => _image;
         public bool FailBuildOnError => _failBuildOnError;
+
+        /// <summary>
+        ///     Folder of the project whose PNG files add mask shapes to the previews, next to those of the package.
+        /// </summary>
+        public DefaultAsset ShapesFolder => _shapesFolder;
 
         /// <summary>
         ///     Lets the settings page edit the singleton, which Unity marks as not editable.

@@ -9,26 +9,27 @@ namespace Javienne.AndroidMonochromeIcon
     internal static class IconPreview
     {
         /// <summary>
-        ///     Part of the layer side that the mask shows, 72 dp of 108 dp.
+        ///     Part of the layer side hidden by the mask on each side, 18 dp of 108 dp.
         /// </summary>
-        internal const float VISIBLE_FRACTION = 2f / 3f;
+        internal const float LAYER_INSET = 1f / 6f;
 
         /// <summary>
-        ///     Opacity of the visible centre of the layer image, from 0 to 1, averaged down to a size × size grid whose rows
-        ///     go from the top. The pixels are those of a texture, whose rows go from the bottom.
+        ///     Opacity of an image inside an inset square of it, from 0 to 1, averaged down to a size × size grid whose rows
+        ///     go from the top. The pixels are those of a texture, whose rows go from the bottom; the inset is a part of the
+        ///     side, left out on each side.
         /// </summary>
-        internal static float[] SampleVisibleLayer(Color32[] pixels, int width, int height, int size)
+        internal static float[] SampleAlpha(Color32[] pixels, int width, int height, int size, float inset)
         {
             var alpha = new float[size * size];
-            var inset = (1 - VISIBLE_FRACTION) / 2;
+            var span = 1 - 2 * inset;
             for (var y = 0; y < size; y++)
             {
-                var top = height * (inset + VISIBLE_FRACTION * y / size);
-                var bottom = height * (inset + VISIBLE_FRACTION * (y + 1) / size);
+                var top = height * (inset + span * y / size);
+                var bottom = height * (inset + span * (y + 1) / size);
                 for (var x = 0; x < size; x++)
                 {
-                    var left = width * (inset + VISIBLE_FRACTION * x / size);
-                    var right = width * (inset + VISIBLE_FRACTION * (x + 1) / size);
+                    var left = width * (inset + span * x / size);
+                    var right = width * (inset + span * (x + 1) / size);
                     alpha[y * size + x] = AverageAlpha(pixels, width, height, left, right, top, bottom);
                 }
             }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -7,18 +8,33 @@ using UnityEngine.UIElements;
 namespace Javienne.AndroidMonochromeIcon
 {
     /// <summary>
-    ///     Project Settings page of the monochrome layer: its settings, and the checks of its image, run again whenever the
-    ///     image, its file or its import settings change.
+    ///     Project Settings page of the monochrome layer: its settings, the checks of its image, run again whenever the
+    ///     image, its file or its import settings change, and previews of the themed icon for each mask shape of Android.
     /// </summary>
     internal class AndroidMonochromeIconSettingsProvider : SettingsProvider
     {
         private const string PATH = "Project/Android Monochrome Icon";
+        private const string BASE_COLOUR_KEY = "Javienne.AndroidMonochromeIcon.PreviewBaseColour";
         private const double ADAPTIVE_ICON_CHECK_INTERVAL = 1;
+        private const float PREVIEW_SIZE = 48;
+        private const float PREVIEW_SPACING = 8;
+        private const float PREVIEW_PADDING = 8;
 
         private static readonly GUIContent _enabledLabel = new GUIContent("Add Monochrome Layer", "Adds the image as the monochrome layer of the adaptive icon in Android builds. Android 13 and later tint it to the theme colours when themed icons are on; earlier versions ignore it.");
         private static readonly GUIContent _imageLabel = new GUIContent("Image", "PNG file copied as it is into the build. Android only keeps its opacity: draw the layer in white on a transparent background.");
         private static readonly GUIContent _failBuildLabel = new GUIContent("Fail Build On Error", "Fails the build when the image has an error. Otherwise the error is logged as a warning and the icon is built without the monochrome layer. Warnings never fail the build.");
         private static readonly GUIContent _applyImportLabel = new GUIContent("Apply Import Settings", "Imports the image as Single Channel, from its Alpha channel.");
+        private static readonly GUIContent _previewLabel = new GUIContent("Themed Icon Preview", "The image as Android 14 and later draw it when themed icons are on: tinted to colours derived from the base colour, in each mask shape of Android.");
+        private static readonly GUIContent _baseColourLabel = new GUIContent("Base Colour", "Colour Android derives the themed icon colours from: taken from the wallpaper, or picked in the wallpaper and style settings. Saved for you only, in the editor preferences.");
+        private static readonly GUIContent _resetColourLabel = new GUIContent("Reset", "Back to the default blue of Android.");
+        private static readonly GUIContent _lightThemeLabel = new GUIContent("Light Theme");
+        private static readonly GUIContent _darkThemeLabel = new GUIContent("Dark Theme");
+        private static readonly GUIContent[] _shapeTooltips = IconShape.All.Select(shape => new GUIContent(string.Empty, $"{shape.Name}\n{shape.Origin}")).ToArray();
+        private static readonly Color _lightPanelColour = new Color(0.95f, 0.95f, 0.95f);
+        private static readonly Color _darkPanelColour = new Color(0.1f, 0.1f, 0.1f);
+
+        private static float[][] _masks;
+        private static int _maskSize;
 
         private SerializedObject _settings;
         private GUIStyle _pageStyle;
@@ -26,6 +42,10 @@ namespace Javienne.AndroidMonochromeIcon
         private string _checkedImageState;
         private bool _isAdaptiveIconMissing;
         private double _nextAdaptiveIconCheck;
+        private Color32 _baseColour;
+        private Texture2D[] _previews;
+        private string _previewState;
+        private float _previewWidth = 400;
 
         private AndroidMonochromeIconSettingsProvider() : base(PATH, SettingsScope.Project, new[] { "android", "icon", "adaptive", "themed", "monochrome" })
         {
@@ -42,12 +62,15 @@ namespace Javienne.AndroidMonochromeIcon
             _settings = new SerializedObject(AndroidMonochromeIconSettings.instance);
             _checkedImageState = null;
             _nextAdaptiveIconCheck = 0;
+            _baseColour = LoadBaseColour();
+            _previewState = null;
             Undo.undoRedoPerformed += OnUndoRedo;
         }
 
         public override void OnDeactivate()
         {
             Undo.undoRedoPerformed -= OnUndoRedo;
+            DestroyPreviews();
         }
 
         public override void OnGUI(string searchContext)
@@ -72,7 +95,10 @@ namespace Javienne.AndroidMonochromeIcon
                     AndroidMonochromeIconSettings.instance.Save();
                 }
 
-                if (enabled.boolValue) DrawIssues((Texture2D)image.objectReferenceValue);
+                if (!enabled.boolValue) return;
+
+                DrawIssues((Texture2D)image.objectReferenceValue);
+                DrawPreviews((Texture2D)image.objectReferenceValue);
             }
         }
 
@@ -139,6 +165,130 @@ namespace Javienne.AndroidMonochromeIcon
             var fullPath = Path.GetFullPath(path);
             var date = File.Exists(fullPath) ? File.GetLastWriteTimeUtc(fullPath).Ticks : 0;
             return $"{path}|{date}|{ImageImportSettings.IsSingleChannelAlpha(path)}";
+        }
+
+        /// <summary>
+        ///     Previews of the themed icon for each mask shape, in the light and dark themes, with the base colour of their
+        ///     colours. Nothing without a readable PNG image.
+        /// </summary>
+        private void DrawPreviews(Texture2D image)
+        {
+            if (!RefreshPreviews(image)) return;
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField(_previewLabel, EditorStyles.boldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUI.BeginChangeCheck();
+                var colour = EditorGUILayout.ColorField(_baseColourLabel, _baseColour, true, false, false);
+                if (EditorGUI.EndChangeCheck()) SetBaseColour(colour);
+
+                if (GUILayout.Button(_resetColourLabel, GUILayout.ExpandWidth(false))) SetBaseColour(ThemeColours.DefaultBaseColour);
+            }
+
+            EditorGUILayout.LabelField("Colours are approximate: Android derives them from the base colour with its own colour model. Hover a preview to see its shape; device makers may use shapes of their own.", EditorStyles.wordWrappedMiniLabel);
+            DrawPreviewPanel(_lightThemeLabel, 0, _lightPanelColour);
+            DrawPreviewPanel(_darkThemeLabel, IconShape.All.Count, _darkPanelColour);
+        }
+
+        /// <summary>
+        ///     Previews of one theme on a panel, in as few rows as the width of the page allows, of even lengths; each
+        ///     names its shape in its tooltip.
+        /// </summary>
+        private void DrawPreviewPanel(GUIContent label, int firstPreview, Color background)
+        {
+            EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel);
+            var count = IconShape.All.Count;
+            var maxColumns = Mathf.Max(1, Mathf.FloorToInt((_previewWidth - 2 * PREVIEW_PADDING + PREVIEW_SPACING) / (PREVIEW_SIZE + PREVIEW_SPACING)));
+            var rows = Mathf.CeilToInt((float)count / maxColumns);
+            var columns = Mathf.CeilToInt((float)count / rows);
+            var area = GUILayoutUtility.GetRect(0, 2 * PREVIEW_PADDING + rows * PREVIEW_SIZE + (rows - 1) * PREVIEW_SPACING, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint && area.width > 1 && !Mathf.Approximately(area.width, _previewWidth))
+            {
+                _previewWidth = area.width;
+                Repaint();
+            }
+
+            var panel = new Rect(area.x, area.y, 2 * PREVIEW_PADDING + columns * PREVIEW_SIZE + (columns - 1) * PREVIEW_SPACING, area.height);
+            EditorGUI.DrawRect(panel, background);
+            for (var i = 0; i < count; i++)
+            {
+                var cell = new Rect(panel.x + PREVIEW_PADDING + i % columns * (PREVIEW_SIZE + PREVIEW_SPACING), panel.y + PREVIEW_PADDING + i / columns * (PREVIEW_SIZE + PREVIEW_SPACING), PREVIEW_SIZE, PREVIEW_SIZE);
+                GUI.DrawTexture(cell, _previews[firstPreview + i]);
+                GUI.Label(cell, _shapeTooltips[i]);
+            }
+        }
+
+        /// <summary>
+        ///     Builds the preview textures again when the image, its file, the base colour or the screen density changed.
+        ///     Returns whether there are previews, which needs a readable PNG image.
+        /// </summary>
+        private bool RefreshPreviews(Texture2D image)
+        {
+            var size = Mathf.RoundToInt(PREVIEW_SIZE * EditorGUIUtility.pixelsPerPoint);
+            var state = $"{ImageState(image)}|{ColorUtility.ToHtmlStringRGB(_baseColour)}|{size}";
+            if (state == _previewState) return _previews != null;
+
+            _previewState = state;
+            DestroyPreviews();
+            var file = image == null ? null : ImageChecks.ReadFile(image);
+            if (file == null || !ImageChecks.IsPng(file) || !ImageChecks.TryReadPixels(file, out var width, out var height, out var pixels)) return false;
+
+            var layer = IconPreview.SampleVisibleLayer(pixels, width, height, size);
+            var masks = Masks(size);
+            var count = IconShape.All.Count;
+            _previews = new Texture2D[2 * count];
+            for (var theme = 0; theme < 2; theme++)
+            {
+                var colours = ThemeColours.ForTheme(_baseColour, theme == 1);
+                for (var i = 0; i < count; i++)
+                {
+                    var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave, wrapMode = TextureWrapMode.Clamp };
+                    texture.SetPixels32(IconPreview.Compose(masks[i], layer, size, colours.background, colours.foreground));
+                    texture.Apply();
+                    _previews[theme * count + i] = texture;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        ///     Coverage masks of the shapes at a size, kept from one page to the next since they never change.
+        /// </summary>
+        private static float[][] Masks(int size)
+        {
+            if (_masks != null && _maskSize == size) return _masks;
+
+            _masks = IconShape.All.Select(shape => ShapeMask.Rasterize(PathData.Flatten(shape.Path), size, IconShape.VIEWPORT)).ToArray();
+            _maskSize = size;
+            return _masks;
+        }
+
+        private void DestroyPreviews()
+        {
+            if (_previews == null) return;
+
+            foreach (var texture in _previews)
+            {
+                Object.DestroyImmediate(texture);
+            }
+
+            _previews = null;
+        }
+
+        /// <summary>
+        ///     Base colour of the previews saved in the editor preferences, or the default blue of Android.
+        /// </summary>
+        private static Color32 LoadBaseColour()
+        {
+            return ColorUtility.TryParseHtmlString("#" + EditorPrefs.GetString(BASE_COLOUR_KEY), out var colour) ? (Color32)colour : ThemeColours.DefaultBaseColour;
+        }
+
+        private void SetBaseColour(Color32 colour)
+        {
+            _baseColour = new Color32(colour.r, colour.g, colour.b, 255);
+            EditorPrefs.SetString(BASE_COLOUR_KEY, ColorUtility.ToHtmlStringRGB(_baseColour));
         }
 
         private void OnUndoRedo()

@@ -26,10 +26,17 @@ namespace Javienne.AndroidMonochromeIcon
         {
             if (image == null) return Check(null, false);
 
+            return Check(ReadFile(image), ImageImportSettings.IsSingleChannelAlpha(AssetDatabase.GetAssetPath(image)));
+        }
+
+        /// <summary>
+        ///     Bytes of the file of an image asset, empty when the asset has no file.
+        /// </summary>
+        internal static byte[] ReadFile(Texture2D image)
+        {
             var path = AssetDatabase.GetAssetPath(image);
             var fullPath = string.IsNullOrEmpty(path) ? null : Path.GetFullPath(path);
-            var file = fullPath != null && File.Exists(fullPath) ? File.ReadAllBytes(fullPath) : new byte[0];
-            return Check(file, ImageImportSettings.IsSingleChannelAlpha(path));
+            return fullPath != null && File.Exists(fullPath) ? File.ReadAllBytes(fullPath) : new byte[0];
         }
 
         /// <summary>
@@ -121,7 +128,7 @@ namespace Javienne.AndroidMonochromeIcon
         /// <summary>
         ///     Pixels of a PNG file, decoded as they are stored.
         /// </summary>
-        private static bool TryReadPixels(byte[] file, out int width, out int height, out Color32[] pixels)
+        internal static bool TryReadPixels(byte[] file, out int width, out int height, out Color32[] pixels)
         {
             var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             try

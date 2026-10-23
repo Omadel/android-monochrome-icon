@@ -1,0 +1,22 @@
+{
+  "name": "com.javienne.android-monochrome-icon",
+  "version": "1.0.0",
+  "displayName": "Android Monochrome Icon",
+  "description": "Adds the monochrome layer of Android 13 themed icons to the adaptive icon of Android builds. A Project Settings page checks the image and previews it in every Android icon mask, in light and dark theme.",
+  "unity": "6000.0",
+  "keywords": [
+    "android",
+    "icon",
+    "adaptive icon",
+    "themed icon",
+    "monochrome"
+  ],
+  "author": {
+    "name": "Javienne",
+    "url": "https://github.com/Omadel"
+  },
+  "license": "MIT",
+  "documentationUrl": "https://github.com/Omadel/android-monochrome-icon#readme",
+  "changelogUrl": "https://github.com/Omadel/android-monochrome-icon/blob/main/CHANGELOG.md",
+  "licensesUrl": "https://github.com/Omadel/android-monochrome-icon/blob/main/LICENSE"
+}

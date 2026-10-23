@@ -8,3 +8,6 @@ All notable changes to this package are documented in this file. The format foll
 
 - Package skeleton: manifest, editor assembly and test assembly.
 - Adaptive icon XML edit that adds the monochrome layer, without duplicates.
+- Project Settings page (Project › Android Monochrome Icon): add the layer or not, its image, fail the build on error. Settings saved in `ProjectSettings/AndroidMonochromeIconSettings.asset`.
+- Live checks of the image under its field. Errors: no image, not a PNG file, not imported as Single Channel Alpha, not square, visible pixels not pure white. Warnings: not 432 px, no adaptive icon in the Android Player Settings.
+- Apply Import Settings button, which imports the image as Single Channel from its Alpha channel.

@@ -18,5 +18,8 @@
   "license": "MIT",
   "documentationUrl": "https://github.com/Omadel/android-monochrome-icon#readme",
   "changelogUrl": "https://github.com/Omadel/android-monochrome-icon/blob/main/CHANGELOG.md",
-  "licensesUrl": "https://github.com/Omadel/android-monochrome-icon/blob/main/LICENSE"
+  "licensesUrl": "https://github.com/Omadel/android-monochrome-icon/blob/main/LICENSE",
+  "dependencies": {
+    "com.unity.modules.imageconversion": "1.0.0"
+  }
 }

@@ -8,7 +8,7 @@ namespace Javienne.AndroidMonochromeIcon
 {
     /// <summary>
     ///     Checks of the monochrome image, run live by the settings page and again by the build. They read the PNG file
-    ///     itself, which the build copies as it is, not the imported texture.
+    ///     itself, which the build writes the layer from, not the imported texture.
     /// </summary>
     internal static class ImageChecks
     {
@@ -62,8 +62,9 @@ namespace Javienne.AndroidMonochromeIcon
 
             if (width != height) issues.Add(new ImageIssue(ImageIssueKind.NotSquare, $"The image is {width} × {height} px: the monochrome layer must be square."));
 
-            var nonWhite = CountNonWhitePixels(pixels);
-            if (nonWhite > 0) issues.Add(new ImageIssue(ImageIssueKind.NotWhite, $"{nonWhite} visible {(nonWhite == 1 ? "pixel is" : "pixels are")} not pure white: draw the layer in white (255, 255, 255), Android only keeps its opacity."));
+            var coloured = CountColouredPixels(pixels);
+            if (coloured > 0) issues.Add(new ImageIssue(ImageIssueKind.NotGrey, $"{coloured} visible {(coloured == 1 ? "pixel is" : "pixels are")} not grey: draw the layer in greys, from white to black. Android only keeps its opacity, and the build turns each grey level into opacity."));
+            else if (LayerPixels.IsEmpty(pixels)) issues.Add(new ImageIssue(ImageIssueKind.EmptyLayer, "The layer is empty: every pixel is black or transparent, and the build turns black into transparent. Draw the layer in white or light greys."));
 
             if (width == height && width != LAYER_SIZE) issues.Add(new ImageIssue(ImageIssueKind.UnexpectedSize, $"The image is {width} px wide: {LAYER_SIZE} px matches the 108 dp layer at the xxxhdpi density, which Android scales down for the others."));
 
@@ -86,14 +87,14 @@ namespace Javienne.AndroidMonochromeIcon
         }
 
         /// <summary>
-        ///     Number of visible pixels, with any opacity above zero, that are not pure white.
+        ///     Number of visible pixels, with any opacity above zero, that are not grey: their channels differ.
         /// </summary>
-        internal static int CountNonWhitePixels(Color32[] pixels)
+        internal static int CountColouredPixels(Color32[] pixels)
         {
             var count = 0;
             foreach (var pixel in pixels)
             {
-                if (pixel.a > 0 && (pixel.r != 255 || pixel.g != 255 || pixel.b != 255)) count++;
+                if (pixel.a > 0 && (pixel.r != pixel.g || pixel.g != pixel.b)) count++;
             }
 
             return count;
@@ -126,7 +127,8 @@ namespace Javienne.AndroidMonochromeIcon
         }
 
         /// <summary>
-        ///     Pixels of a PNG file, decoded as they are stored.
+        ///     Pixels of a PNG file, decoded as they are stored. A grey PNG loaded into a red-only texture format has its grey
+        ///     level copied to the three channels, opaque.
         /// </summary>
         internal static bool TryReadPixels(byte[] file, out int width, out int height, out Color32[] pixels)
         {
@@ -137,6 +139,14 @@ namespace Javienne.AndroidMonochromeIcon
                 width = texture.width;
                 height = texture.height;
                 pixels = loaded ? texture.GetPixels32() : null;
+                if (loaded && (texture.format == TextureFormat.R8 || texture.format == TextureFormat.R16))
+                {
+                    for (var i = 0; i < pixels.Length; i++)
+                    {
+                        pixels[i] = new Color32(pixels[i].r, pixels[i].r, pixels[i].r, 255);
+                    }
+                }
+
                 return loaded;
             }
             finally

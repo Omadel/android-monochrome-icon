@@ -3,7 +3,8 @@ using UnityEditor;
 namespace Javienne.AndroidMonochromeIcon
 {
     /// <summary>
-    ///     Import settings the monochrome image needs: Single Channel, from its Alpha channel, the only one Android keeps.
+    ///     Import settings the monochrome image needs: Single Channel, from its Alpha channel, as Android only keeps the
+    ///     opacity of the layer. The build reads the file, so these settings only change the texture in the editor.
     /// </summary>
     internal static class ImageImportSettings
     {

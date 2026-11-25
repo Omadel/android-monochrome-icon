@@ -9,6 +9,7 @@ namespace Javienne.AndroidMonochromeIcon.Tests
     {
         private static readonly Color32 _white = new Color32(255, 255, 255, 255);
         private static readonly Color32 _clear = new Color32(255, 255, 255, 0);
+        private static readonly Color32 _black = new Color32(0, 0, 0, 255);
 
         [Test]
         public void Check_NoFile_ReturnsMissingImage()
@@ -51,24 +52,52 @@ namespace Javienne.AndroidMonochromeIcon.Tests
         }
 
         [Test]
-        public void Check_VisibleColouredPixel_ReturnsNotWhite()
+        public void Check_VisibleColouredPixel_ReturnsNotGrey()
         {
             var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _clear, new Color32(255, 0, 0, 255));
-            Assert.That(Kinds(ImageChecks.Check(file, true)), Is.EqualTo(new[] { ImageIssueKind.NotWhite }));
+            Assert.That(Kinds(ImageChecks.Check(file, true)), Is.EqualTo(new[] { ImageIssueKind.NotGrey }));
         }
 
         [Test]
-        public void Check_FaintGreyPixel_ReturnsNotWhite()
+        public void Check_FaintOffGreyPixel_ReturnsNotGrey()
         {
             var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _clear, new Color32(254, 255, 255, 1));
-            Assert.That(Kinds(ImageChecks.Check(file, true)), Is.EqualTo(new[] { ImageIssueKind.NotWhite }));
+            Assert.That(Kinds(ImageChecks.Check(file, true)), Is.EqualTo(new[] { ImageIssueKind.NotGrey }));
         }
 
         [Test]
         public void Check_TransparentColouredPixel_ReturnsNoIssue()
         {
-            var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _clear, new Color32(255, 0, 0, 0));
+            var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _white, new Color32(255, 0, 0, 0));
             Assert.That(ImageChecks.Check(file, true), Is.Empty);
+        }
+
+        [Test]
+        public void Check_GreyPixel_ReturnsNoIssue()
+        {
+            var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _clear, new Color32(128, 128, 128, 255));
+            Assert.That(ImageChecks.Check(file, true), Is.Empty);
+        }
+
+        [Test]
+        public void Check_WhiteOnOpaqueBlack_ReturnsNoIssue()
+        {
+            var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _black, _white);
+            Assert.That(ImageChecks.Check(file, true), Is.Empty);
+        }
+
+        [Test]
+        public void Check_BlackOnTransparent_ReturnsEmptyLayer()
+        {
+            var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _clear, _black);
+            Assert.That(Kinds(ImageChecks.Check(file, true)), Is.EqualTo(new[] { ImageIssueKind.EmptyLayer }));
+        }
+
+        [Test]
+        public void Check_FullyTransparent_ReturnsEmptyLayer()
+        {
+            var file = Png(ImageChecks.LAYER_SIZE, ImageChecks.LAYER_SIZE, _clear);
+            Assert.That(Kinds(ImageChecks.Check(file, true)), Is.EqualTo(new[] { ImageIssueKind.EmptyLayer }));
         }
 
         [Test]
@@ -87,14 +116,14 @@ namespace Javienne.AndroidMonochromeIcon.Tests
         [Test]
         public void Check_SeveralProblems_ReturnsErrorsBeforeWarnings()
         {
-            var file = Png(256, 256, _clear, new Color32(0, 0, 0, 255));
-            Assert.That(Kinds(ImageChecks.Check(file, false)), Is.EqualTo(new[] { ImageIssueKind.NotSingleChannelAlpha, ImageIssueKind.NotWhite, ImageIssueKind.UnexpectedSize }));
+            var file = Png(256, 256, _clear, new Color32(255, 0, 0, 255));
+            Assert.That(Kinds(ImageChecks.Check(file, false)), Is.EqualTo(new[] { ImageIssueKind.NotSingleChannelAlpha, ImageIssueKind.NotGrey, ImageIssueKind.UnexpectedSize }));
         }
 
         [Test]
         public void IsError_ErrorKinds_ReturnsTrue()
         {
-            var kinds = new[] { ImageIssueKind.MissingImage, ImageIssueKind.NotSingleChannelAlpha, ImageIssueKind.NotPng, ImageIssueKind.NotSquare, ImageIssueKind.NotWhite };
+            var kinds = new[] { ImageIssueKind.MissingImage, ImageIssueKind.NotSingleChannelAlpha, ImageIssueKind.NotPng, ImageIssueKind.NotSquare, ImageIssueKind.NotGrey, ImageIssueKind.EmptyLayer };
             Assert.That(kinds.Select(kind => new ImageIssue(kind, string.Empty).IsError), Is.All.True);
         }
 
@@ -112,10 +141,10 @@ namespace Javienne.AndroidMonochromeIcon.Tests
         }
 
         [Test]
-        public void CountNonWhitePixels_MixedPixels_CountsVisibleNonWhiteOnes()
+        public void CountColouredPixels_MixedPixels_CountsVisibleColouredOnes()
         {
-            var pixels = new[] { _white, _clear, new Color32(0, 0, 0, 0), new Color32(0, 0, 0, 1), new Color32(255, 255, 0, 255) };
-            Assert.That(ImageChecks.CountNonWhitePixels(pixels), Is.EqualTo(2));
+            var pixels = new[] { _white, _clear, _black, new Color32(128, 128, 128, 1), new Color32(255, 0, 0, 0), new Color32(255, 255, 0, 255), new Color32(1, 0, 0, 1) };
+            Assert.That(ImageChecks.CountColouredPixels(pixels), Is.EqualTo(2));
         }
 
         private static ImageIssueKind[] Kinds(IEnumerable<ImageIssue> issues)

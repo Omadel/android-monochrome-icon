@@ -77,17 +77,17 @@ namespace Javienne.AndroidMonochromeIcon.Tests
         [Test]
         public void Report_ErrorWithFailBuild_ThrowsBuildFailedException()
         {
-            var issues = new List<ImageIssue> { new ImageIssue(ImageIssueKind.NotWhite, "Not white.") };
-            Assert.That(() => MonochromeLayerBuildStep.Report(issues, true, new List<object>().Add), Throws.TypeOf<BuildFailedException>().With.Message.Contains("Not white."));
+            var issues = new List<ImageIssue> { new ImageIssue(ImageIssueKind.NotGrey, "Not grey.") };
+            Assert.That(() => MonochromeLayerBuildStep.Report(issues, true, new List<object>().Add), Throws.TypeOf<BuildFailedException>().With.Message.Contains("Not grey."));
         }
 
         [Test]
         public void Report_ErrorWithoutFailBuild_LogsWarningAndReturnsFalse()
         {
             var logs = new List<object>();
-            var issues = new List<ImageIssue> { new ImageIssue(ImageIssueKind.NotWhite, "Not white.") };
+            var issues = new List<ImageIssue> { new ImageIssue(ImageIssueKind.NotGrey, "Not grey.") };
             Assert.That(MonochromeLayerBuildStep.Report(issues, false, logs.Add), Is.False);
-            Assert.That(logs, Is.EqualTo(new[] { "Android Monochrome Icon: Not white. The icon is built without the monochrome layer." }));
+            Assert.That(logs, Is.EqualTo(new[] { "Android Monochrome Icon: Not grey. The icon is built without the monochrome layer." }));
         }
 
         [Test]

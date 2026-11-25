@@ -20,20 +20,20 @@ On **Unity 7000** and later, Unity has its own setting for this layer (`adaptive
 In the Package Manager, choose **+ › Install package from git URL…** and enter:
 
 ```
-https://github.com/Omadel/android-monochrome-icon.git#v1.0.0
+https://github.com/Omadel/android-monochrome-icon.git#v1.1.0
 ```
 
 Or add this line to the `dependencies` of `Packages/manifest.json`:
 
 ```json
-"com.javienne.android-monochrome-icon": "https://github.com/Omadel/android-monochrome-icon.git#v1.0.0"
+"com.javienne.android-monochrome-icon": "https://github.com/Omadel/android-monochrome-icon.git#v1.1.0"
 ```
 
 To update, change the tag at the end of the URL. The Package Manager does not list the versions of a git package.
 
 ## Quick start
 
-1. Draw the layer: a square PNG, **white on a transparent background**, 432 × 432 px. Keep the drawing in the central 264 px, the 66 dp safe zone of adaptive icons.
+1. Draw the layer: a square PNG, **in white or greys on a transparent background**, 432 × 432 px. White gives the full theme colour, a grey a lighter one, black nothing. Keep the drawing in the central 264 px, the 66 dp safe zone of adaptive icons.
 2. Open **Edit › Project Settings › Android Monochrome Icon**, and set the PNG as the **Image**.
 3. Click **Apply Import Settings** if the page asks for it.
 4. Build for Android.
@@ -57,10 +57,11 @@ The page checks the image under its field whenever the image, its file or its im
 **Errors**: the build leaves the layer out, or fails if **Fail Build On Error** is on.
 
 - **No image is set.**
-- **The file is not a PNG.** The build copies the file as it is, and Android needs a PNG.
-- **The texture is not imported as Single Channel, from its Alpha channel.** The **Apply Import Settings** button sets this. The build does not read the imported texture, so this setting does not change the build: it keeps in the editor only what Android keeps.
+- **The file is not a PNG.** The build reads the file itself, and Android needs a PNG.
+- **The texture is not imported as Single Channel, from its Alpha channel.** The **Apply Import Settings** button sets this. The build does not read the imported texture, so this setting does not change the build: it keeps in the editor only the opacity of the image. For a grey image, the texture in the editor does not show the greys; the previews do.
 - **The image is not square.**
-- **Visible pixels are not pure white.** Every pixel with an opacity above zero must be white (255, 255, 255). Fully transparent pixels can have any colour.
+- **Visible pixels are not grey.** Every pixel with an opacity above zero must be a grey, with three equal channels, from white (255, 255, 255) to black (0, 0, 0). Fully transparent pixels can have any colour.
+- **The layer is empty.** Every pixel is black or fully transparent, so the layer has nothing to draw once its greys are turned into opacity. A black drawing on a transparent background gives this error: draw it in white.
 
 **Warnings**: these never fail the build.
 
@@ -71,7 +72,9 @@ The page checks the image under its field whenever the image, its file or its im
 
 After Unity generates the Gradle project, the package runs the checks again. If the image has no error, the package then:
 
-- copies the PNG file as it is to `launcher/src/main/res/mipmap-xxxhdpi/app_icon_monochrome.png`;
+- writes the layer to `launcher/src/main/res/mipmap-xxxhdpi/app_icon_monochrome.png`:
+  - a white image, every visible pixel pure white, is copied as it is;
+  - otherwise, the build writes a new PNG file, white, whose opacity is that of the image times its grey level: a pixel of 50 % grey gives half its opacity, a black pixel none;
 - adds `<monochrome android:drawable="@mipmap/app_icon_monochrome"/>` to `mipmap-anydpi-v26/app_icon.xml` and `app_icon_round.xml`, unless they already have a monochrome layer.
 
 Only the xxxhdpi density is written: Android scales the image down for the other densities.
@@ -79,7 +82,7 @@ Only the xxxhdpi density is written: Android scales the image down for the other
 ## How Android uses the layer
 
 - On Android 13 (API 33) and later, when the user turns themed icons on, the launcher draws the monochrome layer in place of the icon, **tinted to the colours of the theme**.
-- Android keeps only the **opacity** of the layer and discards its colour. A partly transparent pixel gives a lighter tint.
+- Android keeps only the **opacity** of the layer and discards its colour. A partly transparent pixel gives a lighter tint. This is why the build turns greys into opacity: a grey left as it is would get the full tint, as white does.
 - The layer is 108 dp, like the foreground layer. The mask shows its central 72 dp, and the 66 dp safe zone stays visible in every shape.
 - Android 8 to 12L (API 26 to 32) ignore the monochrome layer, and draw the adaptive icon as before.
 - On Android 14 and later, the themed icon colours of AOSP come from the wallpaper, or from the colour chosen in the wallpaper and style settings:
@@ -125,7 +128,7 @@ To preview other shapes, put PNG files in a folder of your project and set it as
 ## Limits
 
 - The package writes the layer at a single density, xxxhdpi.
-- It copies the image as it is: it does not convert or generate it.
+- It turns the greys of the image into opacity, and copies a white image as it is. It does not generate the layer from the colour icon.
 - It only edits the adaptive icon files that Unity generates, `app_icon.xml` and `app_icon_round.xml` in the `launcher` module. A Gradle setup that renames or moves them gets the "no adaptive icon" warning, and no layer.
 - The previews are approximations. They do not simulate a launcher: no icon scaling, shadow or label.
 - Verified in an Android App Bundle built with Unity 6000.3. Not verified on a device below Android 13.

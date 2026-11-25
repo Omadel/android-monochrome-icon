@@ -24,8 +24,9 @@ namespace Javienne.AndroidMonochromeIcon
         public int callbackOrder => 0;
 
         /// <summary>
-        ///     Checks the image of the settings again, then writes the layer into the resources of the launcher module, next
-        ///     to the Unity library module whose folder Unity passes.
+        ///     Checks the image of the settings again, then writes its layer into the resources of the launcher module, next
+        ///     to the Unity library module whose folder Unity passes: the image as it is when it is white, its grey levels
+        ///     turned into opacity otherwise.
         /// </summary>
         public void OnPostGenerateGradleAndroidProject(string path)
         {
@@ -34,12 +35,12 @@ namespace Javienne.AndroidMonochromeIcon
 
             if (!Report(ImageChecks.CheckImage(settings.Image), settings.FailBuildOnError, Debug.LogWarning)) return;
 
-            var image = File.ReadAllBytes(Path.GetFullPath(AssetDatabase.GetAssetPath(settings.Image)));
+            var image = LayerPixels.ToLayerFile(File.ReadAllBytes(Path.GetFullPath(AssetDatabase.GetAssetPath(settings.Image))));
             Report(WriteLayer(Path.Combine(path, "..", "launcher", "src", "main", "res"), image), settings.FailBuildOnError, Debug.LogWarning);
         }
 
         /// <summary>
-        ///     Writes the layer into a res folder: the image as it is in mipmap-xxxhdpi, and a monochrome layer in each
+        ///     Writes the layer into a res folder: its PNG file in mipmap-xxxhdpi, and a monochrome layer in each
         ///     adaptive icon XML. Without any adaptive icon XML, writes nothing and returns a warning.
         /// </summary>
         internal static List<ImageIssue> WriteLayer(string resources, byte[] image)

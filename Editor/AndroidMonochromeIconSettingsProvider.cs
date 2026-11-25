@@ -23,7 +23,7 @@ namespace Javienne.AndroidMonochromeIcon
         private const float PREVIEW_PADDING = 8;
 
         private static readonly GUIContent _enabledLabel = new GUIContent("Add Monochrome Layer", "Adds the image as the monochrome layer of the adaptive icon in Android builds. Android 13 and later tint it to the theme colours when themed icons are on; earlier versions ignore it.");
-        private static readonly GUIContent _imageLabel = new GUIContent("Image", "PNG file copied as it is into the build. Android only keeps its opacity: draw the layer in white on a transparent background.");
+        private static readonly GUIContent _imageLabel = new GUIContent("Image", "PNG file of the layer, in white or greys on a transparent background. Android only keeps its opacity: the build turns each grey level into opacity, so white gives the full theme colour, greys a lighter one, black none.");
         private static readonly GUIContent _failBuildLabel = new GUIContent("Fail Build On Error", "Fails the build when the image has an error. Otherwise the error is logged as a warning and the icon is built without the monochrome layer. Warnings never fail the build.");
         private static readonly GUIContent _applyImportLabel = new GUIContent("Apply Import Settings", "Imports the image as Single Channel, from its Alpha channel.");
         private static readonly GUIContent _previewLabel = new GUIContent("Themed Icon Preview", "The image as Android 14 and later draw it when themed icons are on: tinted to colours derived from the base colour, in each mask shape of Android.");
@@ -259,7 +259,7 @@ namespace Javienne.AndroidMonochromeIcon
             var file = image == null ? null : ImageChecks.ReadFile(image);
             if (file == null || !ImageChecks.IsPng(file) || !ImageChecks.TryReadPixels(file, out var width, out var height, out var pixels)) return false;
 
-            var layer = IconPreview.SampleAlpha(pixels, width, height, size, IconPreview.LAYER_INSET);
+            var layer = IconPreview.SampleAlpha(LayerPixels.FromImage(pixels), width, height, size, IconPreview.LAYER_INSET);
             var masks = new List<float[]>();
             var tooltips = new List<GUIContent>();
             _unreadableShapes.Clear();

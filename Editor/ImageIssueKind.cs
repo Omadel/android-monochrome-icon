@@ -9,7 +9,8 @@ namespace Javienne.AndroidMonochromeIcon
         NotSingleChannelAlpha,
         NotPng,
         NotSquare,
-        NotWhite,
+        NotGrey,
+        EmptyLayer,
         UnexpectedSize,
         MissingAdaptiveIcon
     }

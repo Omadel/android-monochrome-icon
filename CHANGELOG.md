@@ -2,6 +2,18 @@
 
 All notable changes to this package are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-25
+
+### Added
+
+- Greyscale images: visible pixels can be any grey, from white to black, on a transparent or opaque background. The build writes them as a white PNG file whose opacity is that of the image times its grey level, since Android only keeps the opacity of the layer: white gives the full theme colour, a grey a lighter one, black nothing. A white image is still copied as it is.
+- Error when the layer is empty: every pixel is black or fully transparent. An image without any visible pixel, accepted before, now gets this error.
+
+### Changed
+
+- The "visible pixels are not pure white" error becomes "visible pixels are not grey": only coloured pixels, whose channels differ, are errors.
+- The previews show the layer as the build writes it, greys turned into opacity.
+
 ## [1.0.0] - 2026-10-23
 
 First release, for Unity 6000.0 and later.
@@ -24,4 +36,5 @@ First release, for Unity 6000.0 and later.
   - An Extra Shapes folder, set on the settings page, adds the project's own shapes.
 - Edit Mode tests for the build step, the checks, the colours and the previews.
 
+[1.1.0]: https://github.com/Omadel/android-monochrome-icon/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Omadel/android-monochrome-icon/releases/tag/v1.0.0
